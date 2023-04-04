@@ -1,13 +1,11 @@
 #! /usr/bin/env python3
 
 # packages
-import numpy as np
 import cv2
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 import rospy
-from geometry_msgs.msg import Twist
-from MovementLogger import MovementLogger
+from Car_actions import CarActions
 
 class ManualDrive:
     """
@@ -18,72 +16,50 @@ class ManualDrive:
   
     def __init__(self):
         """
-        Initializes an instance of the ManualDrive class
-
-        @param self The object pointer
+        Initializes an instance of the ManualDrive class.
         """
-        self.bridge = CvBridge() # Create a CvBridge object to convert sensor_msgs/Image type to cv2 image
 
-        self.linear_speed = 0.3
-        self.angular_speed = 0.7
-        self.publish_twist = rospy.Publisher('/R1/cmd_vel', Twist, queue_size=1)
-        self.move = Twist()
-        self.logger = MovementLogger()
-        self.movement = [0, 0, 0]
+        self.bridge = CvBridge() # Create a CvBridge object to convert sensor_msgs/Image type to cv2 image
+        self.CarActions = CarActions(log=True)
         self.subscriber = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
         
 
     def callback(self,data):
         """
-        Callback function to process key events and control robot's movement
+        Callback function to process key events and control robot's movement.
 
-        @param self The object pointer
         @param data The Image message received from the camera
         """
         key = cv2.waitKey(1) & 0xFF
         frame = self.bridge.imgmsg_to_cv2(data, 'bgr8')
 
-        cv2.imshow("input_frame___", frame)
+        cv2.imshow("*camera_view*", frame)
         cv2.waitKey(3)
 
-        if key == 82: # move forward when up arrow key is pressed
-            self.move.linear.x = self.linear_speed
-            self.move.angular.z = 0
-            self.movement = [0, 1, 0]
-        
-        elif key == 81: # turn left when left arrow key is pressed
-            self.move.angular.z = self.angular_speed
-            self.move.linear.x = self.linear_speed*0.6
-            self.movement = [1, 0, 0]
+        # move forward when up arrow key is pressed
+        if key == 82: self.CarActions.move_forward()
 
-        elif key == 83: # turn right when right arrow key is pressed
-            self.move.linear.x = self.linear_speed*0.6
-            self.move.angular.z = -1*self.angular_speed
-            self.movement = [0, 0, 1]
-        
-        elif key == 84: # move backward when down arrow key is pressed
-            self.move.linear.x = -1*self.linear_speed
-            self.move.angular.z = 0
-            self.movement = [0, 0, 0]
+        # turn left when left arrow key is pressed
+        elif key == 81: self.CarActions.turn_left()
 
-        elif key == ord(" "):
-            self.move.linear.x = 0
-            self.move.angular.z = 0
-            self.movement = [0, 0, 0]
-            self.publish_twist.publish(self.move)
+        # turn right when right arrow key is pressed
+        elif key == 83: self.CarActions.turn_right()
         
-        self.publish_twist.publish(self.move)
-        # if self.movement != [0, 0, 0]:
-        #     self.logger.add_entry(frame, self.movement)
+        # move backward when down arrow key is pressed
+        elif key == 84: self.CarActions.move_backward()
 
+        # stop when spacebar is pressed
+        elif key == ord(" "): self.CarActions.stop()
+
+        elif key == ord("r"): self.CarActions.record()
+        
+        elif key == ord("s"): self.CarActions.stopRecording()
 
     def shutdown_hook(self):
         """
-        Shutdown hook function to save the log before shutting down
+        Shutdown hook function to stop the robot movement and save the log before shutting down.
         """
-        self.move.linear.x = 0
-        self.move.angular.z = 0
-        self.publish_twist.publish(self.move)
+        self.CarActions.stop()
 
 
 if __name__ == '__main__':

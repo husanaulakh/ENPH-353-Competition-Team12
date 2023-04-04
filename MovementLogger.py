@@ -1,4 +1,3 @@
-import csv
 import os
 import cv2
 import numpy as np
@@ -7,7 +6,7 @@ from datetime import datetime
 class MovementLogger:
     def __init__(self):
         self.log = []
-        self.image_folder = 'outerloop_training_imagesV2'
+        self.image_folder = 'best_training_outerloopV2'
         if not os.path.exists(self.image_folder):
             os.makedirs(self.image_folder)
     
@@ -16,8 +15,8 @@ class MovementLogger:
         Adds a new entry to the logger
         
         @param frame: the current frame to be logged
-        @param movement: a 4-element numpy array indicating the movement command
-                         [leftTurn, forward, rightTurn, stop]
+        @param movement: a 3-element numpy array indicating the movement command
+                         [leftTurn, forward, rightTurn]
         """
 
         date_string = datetime.now().strftime('%Y-%m-%d_%H-%M-%S-%f')
