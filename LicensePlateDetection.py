@@ -10,8 +10,9 @@ from Car_actions import CarActions
 import numpy as np
 from geometry_msgs.msg import Twist
 import matplotlib.pyplot as plt
+from ManualDriving import ManualDrive
 
-class ManualDrive:
+class LicensePlateDetection:
     """
     Class to manually drive a robot using arrow keys
 

@@ -18,7 +18,6 @@ class CarActions:
         self.log = log
         self.logger = MovementLogger()
         self.recording = False
-        self.counter = 0
         self.adjuster = 1
         self.subscriber = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
 
@@ -28,7 +27,6 @@ class CarActions:
             # if self.recording:
         # if self.counter % 2 == 0:
             self.logger.add_entry(frame, self.movement)
-            self.counter += 1
         
         self.publish_twist.publish(self.move)
 
