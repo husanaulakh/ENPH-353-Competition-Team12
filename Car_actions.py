@@ -8,7 +8,7 @@ from MovementLogger import MovementLogger
 # best 0.3 1.095
 
 class CarActions:
-    def __init__(self, linear_speed=0.3, angular_speed=1, log=False):
+    def __init__(self, linear_speed=0.15, angular_speed=0.6, log=False):
         self.bridge = CvBridge() # Create a CvBridge object to convert sensor_msgs/Image type to cv2 image
         self.linear_speed = linear_speed
         self.angular_speed = angular_speed
