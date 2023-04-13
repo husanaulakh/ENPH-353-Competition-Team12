@@ -24,7 +24,7 @@ class Imitator:
         self.drivingModel = tf.keras.models.load_model('TrainedImitator_wholeLoop.h5')
         self.characterModel = tf.keras.models.load_model('characterRecogModel.h5')
         # self.CarActions = CarActions(linear_speed=0.31, angular_speed=1.0, log=False)
-        self.CarActions = CarActions(linear_speed=0.28, angular_speed=0.92, log=False)
+        self.CarActions = CarActions(linear_speed=0.5, angular_speed=1.47, log=False)
         self.licenseLogger = LicenseLogger()
         self.detected_redline = False
         self.pedestrianCrossed = False
