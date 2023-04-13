@@ -8,7 +8,7 @@ from MovementLogger import MovementLogger
 # best 0.3 1.095
 
 class CarActions:
-    def __init__(self, linear_speed=0.15, angular_speed=0.6, log=False):
+    def __init__(self, linear_speed=0.3, angular_speed=1.05, log=False):
         self.bridge = CvBridge() # Create a CvBridge object to convert sensor_msgs/Image type to cv2 image
         self.linear_speed = linear_speed
         self.angular_speed = angular_speed
@@ -23,10 +23,8 @@ class CarActions:
         self.subscriber = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
 
     def callback(self, data):
-        if self.log and self.movement != [0, 0, 0]: 
+        if (self.log or self.recording) and self.movement != [0, 0, 0]: 
             frame = self.bridge.imgmsg_to_cv2(data, 'bgr8')
-            # if self.recording:
-        # if self.counter % 2 == 0:
             self.logger.add_entry(frame, self.movement)
             self.counter += 1
         
