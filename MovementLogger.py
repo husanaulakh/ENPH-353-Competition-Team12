@@ -6,7 +6,7 @@ from datetime import datetime
 class MovementLogger:
     def __init__(self):
         self.log = []
-        self.image_folder = 'best_training_outerloopV2'
+        self.image_folder = 'whole_loop_L0.27_A0.9'
         if not os.path.exists(self.image_folder):
             os.makedirs(self.image_folder)
     
