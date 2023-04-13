@@ -68,13 +68,12 @@ class ManualDrive:
         elif key == ord("s"):
             self.CarActions.stopRecording()
 
-        # Copy the frame
         img = np.copy(frame)
-
+        
         # Convert to HSV color space
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        # Define HSV range to mask
+        # Define original HSV range to mask
         lower_range = np.array([0, 0, 100])
         upper_range = np.array([0, 0, 105])
 
@@ -104,8 +103,41 @@ class ManualDrive:
         if combined_rect is not None:
             x, y, w, h = combined_rect
             cropped_img = img[y:y+h, x:x+w]
-            # Display the cropped image using Matplotlib
-            plt.imshow(cv2.cvtColor(cropped_img, cv2.COLOR_BGR2RGB))
+            
+            # Define new HSV range to mask
+            new_lower_range = np.array([40, 0, 80])
+            new_upper_range = np.array([129, 80, 100])
+            
+            # Create binary mask with new HSV range
+            new_mask = cv2.inRange(cv2.cvtColor(cropped_img, cv2.COLOR_BGR2HSV), new_lower_range, new_upper_range)
+            
+            # Find the contours in the masked image
+            contours, hierarchy = cv2.findContours(new_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # Extract the contour with the largest area
+            max_area = 0
+            max_contour = None
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area > max_area:
+                    max_area = area
+                    max_contour = contour
+
+            # Create a binary mask for the largest contour
+            mask = np.zeros_like(new_mask)
+            cv2.drawContours(new_mask, [max_contour], 0, 255, -1)
+
+            # Extract the masked region from the original image
+            masked_img = cv2.bitwise_and(cropped_img, cropped_img, mask=mask)
+
+            # Draw the extracted region on the original image using Matplotlib
+            fig, ax = plt.subplots()
+            ax.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            rect = cv2.boundingRect(max_contour)
+            x, y, w, h = rect
+            x += combined_rect[0]
+            y += combined_rect[1]
+            ax.add_patch(plt.Rectangle((x, y), w, h, fill=False, edgecolor='red', linewidth=2))
             plt.show()
 
     def shutdown_hook(self):
