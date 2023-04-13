@@ -9,7 +9,7 @@ import tensorflow as tf
 from Car_actions import CarActions
 import time
 from LicenseLogger import LicenseLogger
-
+from std_msgs.msg import String
 
 class Imitator:
     """
@@ -21,10 +21,12 @@ class Imitator:
         Initializes an instance of the Imitator class.
         """
         self.bridge = CvBridge()
+        # self.drivingModel = tf.keras.models.load_model('TrainedImitator_wholeLoop.h5')
         self.drivingModel = tf.keras.models.load_model('TrainedImitator_wholeLoop.h5')
         self.characterModel = tf.keras.models.load_model('characterRecogModel.h5')
         # self.CarActions = CarActions(linear_speed=0.31, angular_speed=1.0, log=False)
         self.CarActions = CarActions(linear_speed=0.28, angular_speed=0.92, log=False)
+        # self.CarActions = CarActions(linear_speed=0.2, angular_speed=0.8, log=False)
         self.licenseLogger = LicenseLogger()
         self.detected_redline = False
         self.pedestrianCrossed = False
@@ -34,8 +36,17 @@ class Imitator:
         self.start_time = time.time()
         self.countPedestrianCrossings = 0
         self.count = 0
-
+        self.licensePlateCounter = 1
+        self.beginCourse = time.time()
+        self.licensePublisher = rospy.Publisher('/license_plate', String, queue_size=1)    
+        rospy.loginfo("Timer started.")
+        
+        #self.clock_sub = rospy.Subscriber('/clock', Clock, self.clock_callback)
+        time.sleep(0.2)
+        
+        self.licensePublisher.publish(String('HUSH,Ken,0,HAJLD12')) #Start Time
         self.subscriber = rospy.Subscriber("/R1/pi_camera/image_raw", Image, self.callback)
+
 
     def callback(self, data):
         """
@@ -43,38 +54,59 @@ class Imitator:
 
         @param data: The Image message received from the camera.
         """
-        frame = self.bridge.imgmsg_to_cv2(data, 'bgr8')
-        self.predictCharacters(frame)
-        
-        if self.specialState:
-            self.continueDriving(frame)
-            cv2.imshow("Imitator", frame)
-            cv2.waitKey(3)
-            return
-        elif self.countPedestrianCrossings < 2:
-            self.checkLineHSV(frame)
-        
-        if self.detected_redline:
-            if self.pedestrianCrossed:
-                self.specialState = True  
-                self.detected_redline = False
-                self.pedestrianCrossed = False
-            else:
-                self.CarActions.stop()
-                self.pedestrian(frame)
+
+        if time.time() - self.beginCourse > 90:
+            rospy.loginfo("Timer stopped.")
+            self.licensePublisher.publish(str('TeamRed,multi21,-1,XR58'))
+
         else:
-            self.predictionDrive(frame)
-            self.findlicenseplate(frame)
+            frame = self.bridge.imgmsg_to_cv2(data, 'bgr8')
+            self.predictCharacters(frame)
+            
+            if self.specialState:
+                self.continueDriving(frame)
+                # cv2.imshow("Imitator", frame)
+                # cv2.waitKey(7)
+                return
+            elif self.countPedestrianCrossings < 2:
+                self.checkLineHSV(frame)
+            
+            if self.detected_redline:
+                if self.pedestrianCrossed:
+                    self.specialState = True  
+                    self.detected_redline = False
+                    self.pedestrianCrossed = False
+                else:
+                    self.CarActions.stop()
+                    self.pedestrian(frame)
+            else:
+                self.predictionDrive(frame)
+                if self.licensePlateCounter == 1:
+                    license_img = self.findlicenseplate(frame)
+                    if license_img is not None and self.licensePlateCounter == 1:
+                        self.predictCharacters(license_img)
+                        
+
+
+                # if self.licensePlateCounter==1 and time.time()-self.beginCourse<4:
+                #     license_img = self.findlicenseplate(frame)
+                #     if license_img is not None:
+                #         self.predictCharacters(license_img)
+                #         self.licensePlateCounter+=1
+                # elif self.licensePlateCounter == 2 and time.time()-self.beginCourse>4 and time.time()-self.beginCourse<6:
+                #     license_img = self.findlicenseplate(frame)
+                #     if license_img is not None:
+                #         self.predictCharacters(license_img)
+            
+            # cv2.imshow("Imitator", frame)
+            # cv2.waitKey(7)
         
-        cv2.imshow("Imitator", frame)
-        cv2.waitKey(3)
-
-
-
 
 
     def predictCharacters(self, frame):
         # Define a function to convert a one-hot vector to a string
+
+        # if self.licensePlateCounter < 1:
         chars = self.getCharacters(frame)
         if len(chars) == 4:
             plate = ""
@@ -83,7 +115,14 @@ class Imitator:
                 img_aug = np.expand_dims(character, axis=0)
                 one_hot = self.characterModel.predict(img_aug)
                 plate += str(self.onehot_to_string(one_hot))
-            print(plate)
+
+            # self.licensePublisher.publish(str('HUSH,Ken,{},{}', str(self.licensePlateCounter), plate))
+            # self.licensePublisher.publish('HUSH,Ken,{},{}}'.format(str(self.licensePlateCounter), plate))
+            if self.licensePlateCounter == 1:
+                self.licensePublisher.publish('HUSH,Ken,{},{}'.format(str(self.licensePlateCounter), plate))
+                self.licensePlateCounter +=1
+                print(plate)
+
 
 
 
@@ -138,10 +177,11 @@ class Imitator:
     
 
     def continueDriving(self, frame):
-        if time.time() - self.start_time > 2:
+        if time.time() - self.start_time > 3:
             self.specialState = False
         self.predictionDrive(frame)
         self.findlicenseplate(frame)
+        
 
             
     def pedestrian(self, frame):
@@ -258,7 +298,8 @@ class Imitator:
         return action
     
 
-    def licenseplate(self, frame, lower_range, upper_range, new_lower_range, new_upper_range, area_threshold):
+    def getLicenseMask(self, frame, lower_range, upper_range, new_lower_range, new_upper_range, area_threshold):
+        return_img = None
         img = np.copy(frame)
         boolean = False # checks if an image comes out (starts on No for default)
 
@@ -342,12 +383,14 @@ class Imitator:
                 masked_height, masked_width, channels = masked_img.shape
                 masked_area = int(masked_height*masked_width)
                 if masked_height < 45 and masked_height > 20 and masked_width > 80 and masked_width < 190:
-                    cv2.imshow("license plate", masked_img)
-                    cv2.waitKey(3)
+                    # cv2.imshow("license plate", masked_img)
+                    # cv2.waitKey(7)
                     # self.licenseLogger.add_entry(masked_img)
                     boolean = True
+                    return_img = masked_img
 
-        return boolean
+
+        return return_img
 
     def findlicenseplate(self, frame):
         # Define original HSV range to mask
@@ -369,10 +412,18 @@ class Imitator:
         # Define threshold for area
         area_threshold1 = 200 # P1, P2, P4, and P5
         area_threshold2 = 2000 # P3
+        img = self.getLicenseMask(frame, lower_range3, upper_range3, new_lower_range3, new_upper_range3, area_threshold2)
+        if img is None:
+            img = self.getLicenseMask(frame, lower_range1, upper_range1, new_lower_range1, new_upper_range1, area_threshold1)
+            if img is None:
+                img = self.getLicenseMask(frame, lower_range2, upper_range2, new_lower_range2, new_upper_range2, area_threshold1)
+                    
+        return img
 
-        if not (self.licenseplate(frame, lower_range3, upper_range3, new_lower_range3, new_upper_range3, area_threshold2)):
-            self.licenseplate(frame, lower_range1, upper_range1, new_lower_range1, new_upper_range1, area_threshold1)
-            self.licenseplate(frame, lower_range2, upper_range2, new_lower_range2, new_upper_range2, area_threshold1)
+
+        # if not (self.licenseplate(frame, lower_range3, upper_range3, new_lower_range3, new_upper_range3, area_threshold2)):
+        #     if not (self.licenseplate(frame, lower_range1, upper_range1, new_lower_range1, new_upper_range1, area_threshold1)):
+        #         self.licenseplate(frame, lower_range2, upper_range2, new_lower_range2, new_upper_range2, area_threshold1)
 
     def shutdown_hook(self):
         """
