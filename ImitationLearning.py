@@ -46,6 +46,7 @@ class Imitator:
         
         #self.clock_sub = rospy.Subscriber('/clock', Clock, self.clock_callback)
         time.sleep(0.2)
+        self.timerstopped = False
         
         self.licensePublisher.publish(String('HUSH,BarbieBot,0,HAJLD12')) #Start Time
         self.subscriber = rospy.Subscriber("/R1/pi_camera/image_raw", Image, self.callback)
@@ -57,8 +58,11 @@ class Imitator:
     def callback(self, data):
 
         if time.time() - self.beginCourse > 39:
-            rospy.loginfo("Timer stopped.")
-            self.licensePublisher.publish(str('TeamRed,multi21,-1,XR58'))
+            
+            if not self.timerstopped:
+                rospy.loginfo("Timer stopped.")
+                self.licensePublisher.publish(str('TeamRed,multi21,-1,XR58'))
+                self.timerstopped = True
 
         
         frame = self.bridge.imgmsg_to_cv2(data, 'bgr8')

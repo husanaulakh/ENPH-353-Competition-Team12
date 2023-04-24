@@ -52,7 +52,7 @@ class CarActions:
     
     
     def callback(self, data):
-        if (self.log or self.recording) and self.movement != [0, 0, 0]: 
+        if self.log and self.movement != [0, 0, 0]: 
             frame = self.bridge.imgmsg_to_cv2(data, 'bgr8')
             self.logger.add_entry(frame, self.movement)
             self.counter += 1
