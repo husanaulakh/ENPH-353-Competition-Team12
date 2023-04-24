@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-
+##
+## \file Imitator.py
+## \brief A brief description of the file.
+##
+## A more detailed description of the file.
+##
 import numpy as np
 import cv2
 from cv_bridge import CvBridge
@@ -11,22 +16,20 @@ import time
 from LicenseLogger import LicenseLogger
 from std_msgs.msg import String
 
+## \class Imitator
+#  \brief A class for imitating the movement of a car based on image input.
+#
+#  A more detailed description of the class.
 class Imitator:
-    """
-    Class for imitating the movement of a car based on image input.
-    """
 
+    ## \brief The constructor for Imitator.
+    #
+    #  \details Initializes an instance of the Imitator class.
     def __init__(self):
-        """
-        Initializes an instance of the Imitator class.
-        """
         self.bridge = CvBridge()
-        # self.drivingModel = tf.keras.models.load_model('TrainedImitator_wholeLoop.h5')
         self.drivingModel = tf.keras.models.load_model('TrainedImitator_wholeLoop.h5')
         self.characterModel = tf.keras.models.load_model('characterRecogModel.h5')
-        # self.CarActions = CarActions(linear_speed=0.31, angular_speed=1.0, log=False)
-        self.CarActions = CarActions(linear_speed=0.28, angular_speed=0.92, log=False)
-        # self.CarActions = CarActions(linear_speed=0.2, angular_speed=0.8, log=False)
+        self.CarActions = CarActions(linear_speed=0.27, angular_speed=0.9, log=False)
         self.licenseLogger = LicenseLogger()
         self.detected_redline = False
         self.pedestrianCrossed = False
@@ -44,65 +47,55 @@ class Imitator:
         #self.clock_sub = rospy.Subscriber('/clock', Clock, self.clock_callback)
         time.sleep(0.2)
         
-        self.licensePublisher.publish(String('HUSH,Ken,0,HAJLD12')) #Start Time
+        self.licensePublisher.publish(String('HUSH,BarbieBot,0,HAJLD12')) #Start Time
         self.subscriber = rospy.Subscriber("/R1/pi_camera/image_raw", Image, self.callback)
 
-
+    ## \brief A method for processing the image and controlling the robot's movement.
+    #
+    #  \details This method is called as a callback for the image received from the camera.
+    #  @param data The Image message received from the camera.
     def callback(self, data):
-        """
-        Callback function to process the image and control the robot's movement.
 
-        @param data: The Image message received from the camera.
-        """
-
-        if time.time() - self.beginCourse > 90:
+        if time.time() - self.beginCourse > 39:
             rospy.loginfo("Timer stopped.")
             self.licensePublisher.publish(str('TeamRed,multi21,-1,XR58'))
 
-        else:
-            frame = self.bridge.imgmsg_to_cv2(data, 'bgr8')
-            self.predictCharacters(frame)
-            
-            if self.specialState:
-                self.continueDriving(frame)
-                # cv2.imshow("Imitator", frame)
-                # cv2.waitKey(7)
-                return
-            elif self.countPedestrianCrossings < 2:
-                self.checkLineHSV(frame)
-            
-            if self.detected_redline:
-                if self.pedestrianCrossed:
-                    self.specialState = True  
-                    self.detected_redline = False
-                    self.pedestrianCrossed = False
-                else:
-                    self.CarActions.stop()
-                    self.pedestrian(frame)
+        
+        frame = self.bridge.imgmsg_to_cv2(data, 'bgr8')
+        self.predictCharacters(frame)
+        
+        if self.specialState:
+            self.continueDriving(frame)
+            # cv2.imshow("Imitator", frame)
+            # cv2.waitKey(7)
+            return
+        elif self.countPedestrianCrossings < 2:
+            self.checkLineHSV(frame)
+        
+        if self.detected_redline:
+            if self.pedestrianCrossed:
+                self.specialState = True  
+                self.detected_redline = False
+                self.pedestrianCrossed = False
             else:
-                self.predictionDrive(frame)
-                if self.licensePlateCounter == 1:
-                    license_img = self.findlicenseplate(frame)
-                    if license_img is not None and self.licensePlateCounter == 1:
-                        self.predictCharacters(license_img)
-                        
-
-
-                # if self.licensePlateCounter==1 and time.time()-self.beginCourse<4:
-                #     license_img = self.findlicenseplate(frame)
-                #     if license_img is not None:
-                #         self.predictCharacters(license_img)
-                #         self.licensePlateCounter+=1
-                # elif self.licensePlateCounter == 2 and time.time()-self.beginCourse>4 and time.time()-self.beginCourse<6:
-                #     license_img = self.findlicenseplate(frame)
-                #     if license_img is not None:
-                #         self.predictCharacters(license_img)
+                self.CarActions.stop()
+                self.pedestrian(frame)
+        else:
+            self.predictionDrive(frame)
+            if self.licensePlateCounter == 1:
+                license_img = self.findlicenseplate(frame)
+                if license_img is not None and self.licensePlateCounter == 1:
+                    self.predictCharacters(license_img)
             
             # cv2.imshow("Imitator", frame)
             # cv2.waitKey(7)
         
 
 
+    ## \brief A method for predicting characters from an image.
+    #
+    #  \details This method predicts characters from an image and publishes them to a topic.
+    #  @param frame The image to predict characters from.
     def predictCharacters(self, frame):
         # Define a function to convert a one-hot vector to a string
 
@@ -119,13 +112,15 @@ class Imitator:
             # self.licensePublisher.publish(str('HUSH,Ken,{},{}', str(self.licensePlateCounter), plate))
             # self.licensePublisher.publish('HUSH,Ken,{},{}}'.format(str(self.licensePlateCounter), plate))
             if self.licensePlateCounter == 1:
-                self.licensePublisher.publish('HUSH,Ken,{},{}'.format(str(self.licensePlateCounter), plate))
+                self.licensePublisher.publish('HUSH,BarbieBot,{},{}'.format(str(self.licensePlateCounter), plate))
                 self.licensePlateCounter +=1
                 print(plate)
 
-
-
-
+    ## \brief A method for converting a one-hot vector to a string.
+    #
+    #  \details This method converts a one-hot vector to a string using a dictionary of indices to characters.
+    #  @param onehot The one-hot vector to convert.
+    #  @return The corresponding character from the dictionary.
     def onehot_to_string(self, onehot):
         # Define a dictionary mapping indices to characters
         char_dict = {
@@ -141,6 +136,14 @@ class Imitator:
         # Return the corresponding character from the dictionary
         return char_dict[index]
 
+
+    ## \brief A method for extracting characters from an image.
+    #
+    #  \details This method extracts characters from an image by first converting it to the HSV color space,
+    #  thresholding the image, and then finding the connected components. The four largest components are then
+    #  cropped out and returned as a list of images.
+    #  @param frame The image to extract characters from.
+    #  @return A list of images containing the extracted characters.
     def getCharacters(self, frame):
         
         # Convert image to HSV color space
@@ -150,15 +153,15 @@ class Imitator:
         mask = cv2.bitwise_not(mask)
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
 
-    # Sort the connected components by their areas in descending order
+        # Sort the connected components by their areas in descending order
         sorted_stats = sorted(stats, key=lambda x: x[4], reverse=True)
 
-    # Pick out the four largest components
+        # Pick out the four largest components
         largest_components = sorted_stats[1:5]
         x_arr = [] 
         chars = []
     
-    # Crop out each of the four largest components using their bounding boxes
+        # Crop out each of the four largest components using their bounding boxes
         for i, (x, y, w, h, area) in enumerate(largest_components):
             component = grey[y-3:y+h+3, x-2:x+w+2]
             if component.size != 0:
@@ -174,16 +177,26 @@ class Imitator:
         sorted_pictures = [pair[0] for pair in sorted_pairs]
 
         return sorted_pictures
-    
 
+    ## \brief A method for continuing driving.
+    #
+    #  \details This method continues driving the car based on image input by calling the predictionDrive and 
+    #  findlicenseplate methods.
+    #  @param frame The image to continue driving with.
     def continueDriving(self, frame):
         if time.time() - self.start_time > 3:
             self.specialState = False
         self.predictionDrive(frame)
         self.findlicenseplate(frame)
+
         
 
-            
+    ## \brief A method for detecting pedestrians in an image and controlling the robot's movement.
+    #
+    #  \details This method applies a color threshold to extract the red pixels in an image and then detects the largest
+    #  contour in the resulting binary mask. It draws a bounding rectangle around the contour and checks if the pedestrian
+    #  has crossed the red line.
+    #  @param frame The image to detect pedestrians in.
     def pedestrian(self, frame):
         # Apply a color threshold to extract the red pixels
         # lower_red = (71, 56, 38)
@@ -227,7 +240,11 @@ class Imitator:
                 self.start_time = time.time()
                 self.pedestrianCheck = None
 
-
+    ## \brief A method for predicting the movement of a car based on an image input.
+    #
+    #  \details This method predicts the movement of a car based on an image input and controls the robot's movement
+    #  accordingly. It uses a deep learning model to predict the next action based on the image input.
+    #  @param frame The image to predict the movement of the car from.
     def predictionDrive(self, frame):
         self.count += 1
         # if self.count % 2 == 1:
@@ -245,6 +262,11 @@ class Imitator:
             self.CarActions.stop()
 
 
+    ## \brief A method for checking the presence of a red line in an image.
+    #
+    #  \details This method checks whether a red line is present in a given image using HSV color space, 
+    #  and updates the value of a flag accordingly.
+    #  @param frame The image to check for a red line.
     def checkLineHSV(self, frame):
         frame = frame[:, 200:1000]
         count = 0
@@ -279,13 +301,12 @@ class Imitator:
 
                 cv2.drawContours(frame, [approx], 0, (0, 255, 0), 3)
 
+    ## \brief A method for making a prediction based on an input frame.
+    #
+    #  \details This method makes a prediction based on an input frame, and returns an array of 3 elements representing the predicted action.
+    #  @param frame The input frame to make a prediction on.
+    #  @return An array of 3 elements representing the predicted action.
     def getPrediction(self, frame):
-        """
-        Helper function to make a prediction based on an input frame.
-
-        @param frame: The input frame to make a prediction on.
-        @return: An array of 3 elements representing the predicted action.
-        """
         img_aug = cv2.resize(frame, (frame.shape[1] // 10, frame.shape[0] // 10))  # resize by 10x
         img_aug = np.expand_dims(img_aug, axis=0)
 
@@ -297,7 +318,16 @@ class Imitator:
 
         return action
     
-
+    ## \brief A method for generating a binary mask of a license plate in an image.
+    #
+    #  \details This method generates a binary mask of a license plate in an image using a specified color range.
+    #  @param frame The image to generate a binary mask from.
+    #  @param lower_range The original lower range of the color to mask.
+    #  @param upper_range The original upper range of the color to mask.
+    #  @param new_lower_range The new lower range of the color to mask.
+    #  @param new_upper_range The new upper range of the color to mask.
+    #  @param area_threshold The threshold area for contours to include in the mask.
+    #  @return A binary mask of the license plate in the image.
     def getLicenseMask(self, frame, lower_range, upper_range, new_lower_range, new_upper_range, area_threshold):
         return_img = None
         img = np.copy(frame)
@@ -392,6 +422,11 @@ class Imitator:
 
         return return_img
 
+    ## \brief A method for finding a license plate in an image.
+    #
+    #  \details This method applies HSV masks to an image in order to isolate the region where the license plate is likely to be found.
+    #  @param frame The image to search for the license plate in.
+    #  @return The masked image containing the license plate, or None if the license plate was not found.
     def findlicenseplate(self, frame):
         # Define original HSV range to mask
         lower_range1 = np.array([0, 0, 100]) # P1 and P2
@@ -425,19 +460,29 @@ class Imitator:
         #     if not (self.licenseplate(frame, lower_range1, upper_range1, new_lower_range1, new_upper_range1, area_threshold1)):
         #         self.licenseplate(frame, lower_range2, upper_range2, new_lower_range2, new_upper_range2, area_threshold1)
 
+
+    ## \brief Shutdown hook function to stop the robot movement and save the log before shutting down.
+    #
+    #  \details This function stops the robot movement and saves the log before shutting down the program.
+    #  @param self The object pointer.
     def shutdown_hook(self):
-        """
-        Shutdown hook function to stop the robot movement before shutting down.
-        """
         self.CarActions.stop()
 
 
 if __name__ == '__main__':
+    ## \brief Initializes the ROS node for the topic publisher.
     rospy.init_node('topic_publisher')
+
+    ## \brief Initializes an instance of the Imitator class.
     robot = Imitator()
+
+    ## \brief Registers a shutdown hook to stop the robot movement and save the log before shutting down.
     rospy.on_shutdown(robot.shutdown_hook)
+
     try:
         rospy.spin()
     except KeyboardInterrupt:
-        print("Shutting down")
+        print("shutting off")
+
+    ## \brief Destroys all open windows when the program terminates.
     cv2.destroyAllWindows()
